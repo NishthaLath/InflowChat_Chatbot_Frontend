@@ -2,7 +2,11 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../styles/LoginPage.css';
 
-const LoginPage: React.FC = () => {
+interface LoginPageProps {
+  setIsAuthenticated: (isAuthenticated: boolean) => void;
+}
+
+const LoginPage: React.FC<LoginPageProps> = ({ setIsAuthenticated }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const navigate = useNavigate();
@@ -11,7 +15,8 @@ const LoginPage: React.FC = () => {
     e.preventDefault();
     // Add your login logic here
     if (username === 'admin' && password === 'password') {
-      navigate('/chatbot');
+      setIsAuthenticated(true);
+      navigate('/');
     } else {
       alert('Invalid credentials');
     }

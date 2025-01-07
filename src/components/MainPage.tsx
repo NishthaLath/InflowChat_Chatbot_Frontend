@@ -19,7 +19,6 @@ import {
 import ConversationService, { Conversation } from '../service/ConversationService';
 import { UserContext } from '../UserContext';
 import { NotificationService } from '../service/NotificationService';
-import { FileDataRef } from '../models/FileData';
 import { ArrowUturnDownIcon } from '@heroicons/react/24/outline';
 
 function getFirstValidString(...args: (string | undefined | null)[]): string {

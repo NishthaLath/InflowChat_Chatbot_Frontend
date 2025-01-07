@@ -1,14 +1,14 @@
-import React, {useContext, useEffect, useRef, useState} from 'react';
-import {ChatService} from "../service/ChatService";
+import React, { useContext, useEffect, useRef, useState } from 'react';
+import { ChatService } from "../service/ChatService";
 import Chat from "./Chat";
-import {ChatCompletion, ChatMessage, MessageType, Role} from "../models/ChatCompletion";
-import {ScrollToBottomButton} from "./ScrollToBottomButton";
-import {OPENAI_DEFAULT_SYSTEM_PROMPT} from "../config";
-import {CustomError} from "../service/CustomError";
-import {useLocation, useNavigate, useParams} from "react-router-dom";
-import {useTranslation} from 'react-i18next';
+import { ChatCompletion, ChatMessage, MessageType, Role } from "../models/ChatCompletion";
+import { ScrollToBottomButton } from "./ScrollToBottomButton";
+import { OPENAI_DEFAULT_SYSTEM_PROMPT } from "../config";
+import { CustomError } from "../service/CustomError";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { useTranslation } from 'react-i18next';
 import ReactDOM from 'react-dom/client';
-import MessageBox, {MessageBoxHandles} from "./MessageBox";
+import MessageBox, { MessageBoxHandles } from "./MessageBox";
 import {
   CONVERSATION_NOT_FOUND,
   DEFAULT_INSTRUCTIONS,
@@ -16,16 +16,11 @@ import {
   MAX_TITLE_LENGTH,
   SNIPPET_MARKERS
 } from "../constants/appConstants";
-import {ChatSettings} from '../models/ChatSettings';
-import chatSettingsDB, {chatSettingsEmitter, updateShowInSidebar} from '../service/ChatSettingsDB';
-import ChatSettingDropdownMenu from "./ChatSettingDropdownMenu";
-import ConversationService, {Conversation} from '../service/ConversationService';
-import {UserContext} from '../UserContext';
-import {NotificationService} from '../service/NotificationService';
-import CustomChatSplash from './CustomChatSplash';
-import {FileDataRef} from '../models/FileData';
-import {OpenAIModel} from '../models/model';
-import {ArrowUturnDownIcon} from '@heroicons/react/24/outline';
+import ConversationService, { Conversation } from '../service/ConversationService';
+import { UserContext } from '../UserContext';
+import { NotificationService } from '../service/NotificationService';
+import { FileDataRef } from '../models/FileData';
+import { ArrowUturnDownIcon } from '@heroicons/react/24/outline';
 
 function getFirstValidString(...args: (string | undefined | null)[]): string {
   for (const arg of args) {
@@ -42,26 +37,21 @@ interface MainPageProps {
   toggleSidebarCollapse: () => void;
 }
 
-const MainPage: React.FC<MainPageProps> = ({className, isSidebarCollapsed, toggleSidebarCollapse}) => {
-  const {userSettings, setUserSettings} = useContext(UserContext);
-  const {t} = useTranslation();
-  const [chatSettings, setChatSettings] = useState<ChatSettings | undefined>(undefined);
+const MainPage: React.FC<MainPageProps> = ({ className, isSidebarCollapsed, toggleSidebarCollapse }) => {
+  const { userSettings } = useContext(UserContext);
+  const { t } = useTranslation();
   const [conversation, setConversation] = useState<Conversation | null>(null);
-  const [model, setModel] = useState<OpenAIModel | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const {id, gid} = useParams<{ id?: string, gid?: string }>();
+  const { id } = useParams<{ id?: string }>();
   const location = useLocation();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [allowAutoScroll, setAllowAutoScroll] = useState(true);
   const messageBoxRef = useRef<MessageBoxHandles>(null);
-  const chatSettingsRef = useRef(chatSettings);
   const buttonRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
-    chatSettingsEmitter.on('chatSettingsChanged', chatSettingsListener);
-
     const button = createButton();
     buttonRef.current = button;
 
@@ -69,13 +59,8 @@ const MainPage: React.FC<MainPageProps> = ({className, isSidebarCollapsed, toggl
 
     return () => {
       document.removeEventListener('selectionchange', handleSelectionChange);
-      chatSettingsEmitter.off('chatSettingsChanged', chatSettingsListener);
     };
   }, []);
-
-  useEffect(() => {
-    chatSettingsRef.current = chatSettings;
-  }, [chatSettings]);
 
   useEffect(() => {
     if (location.pathname === '/') {
@@ -87,18 +72,7 @@ const MainPage: React.FC<MainPageProps> = ({className, isSidebarCollapsed, toggl
         newConversation();
       }
     }
-
-    if (gid) {
-      const gidNumber = Number(gid);
-      if (!isNaN(gidNumber)) {
-        fetchAndSetChatSettings(gidNumber);
-      } else {
-        setChatSettings(undefined);
-      }
-    } else {
-      setChatSettings(undefined);
-    }
-  }, [gid, id, location.pathname]);
+  }, [id, location.pathname]);
 
   useEffect(() => {
     if (location.state?.reset) {
@@ -128,61 +102,8 @@ const MainPage: React.FC<MainPageProps> = ({className, isSidebarCollapsed, toggl
 
     window.addEventListener('keydown', handleKeyDown);
 
-    if (userSettings.model) {
-      fetchModelById(userSettings.model).then(setModel);
-    }
-
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
-
-  useEffect(() => {
-    if (userSettings.model) {
-      fetchModelById(userSettings.model).then(setModel);
-    }
-  }, [userSettings]);
-
-  const fetchModelById = async (modelId: string): Promise<OpenAIModel | null> => {
-    try {
-      const fetchedModel = await ChatService.getModelById(modelId);
-      return fetchedModel;
-    } catch (error) {
-      console.error('Failed to fetch model:', error);
-      if (error instanceof Error) {
-        NotificationService.handleUnexpectedError(error, 'Failed to fetch model.');
-      }
-      return null;
-    }
-  };
-
-
-  const chatSettingsListener = (data: { gid?: number }) => {
-    const currentChatSettings = chatSettingsRef.current;
-    if (data && typeof data === 'object') {
-      if (currentChatSettings && currentChatSettings.id === data.gid) {
-        fetchAndSetChatSettings(data.gid);
-      }
-    } else {
-      if (currentChatSettings) {
-        fetchAndSetChatSettings(currentChatSettings.id);
-      }
-    }
-  };
-
-  const fetchAndSetChatSettings = async (gid: number) => {
-    try {
-      const settings = await chatSettingsDB.chatSettings.get(gid);
-      setChatSettings(settings);
-      if (settings) {
-        if (settings.model === null) {
-          setModel(null);
-        } else {
-          fetchModelById(settings.model).then(setModel);
-        }
-      }
-    } catch (error) {
-      console.error('Failed to fetch chat settings:', error);
-    }
-  };
 
   const newConversation = () => {
     setConversation(null);
@@ -191,6 +112,7 @@ const MainPage: React.FC<MainPageProps> = ({className, isSidebarCollapsed, toggl
     setMessages([]);
     messageBoxRef.current?.focusTextarea();
   }
+
   const handleSelectedConversation = (id: string | null) => {
     if (id && id.length > 0) {
       let n = Number(id);
@@ -200,15 +122,14 @@ const MainPage: React.FC<MainPageProps> = ({className, isSidebarCollapsed, toggl
             setConversation(conversation);
             clearInputArea();
             ConversationService.getChatMessages(conversation).then((messages: ChatMessage[]) => {
-                if (messages.length == 0) {
-                  // Race condition: the navigate to /c/id and the updating of the messages state
-                  // are happening at the same time.
-                  console.warn('possible state problem');
-                } else {
-                  setMessages(messages);
-                }
+              if (messages.length === 0) {
+                // Race condition: the navigate to /c/id and the updating of the messages state
+                // are happening at the same time.
+                console.warn('possible state problem');
+              } else {
+                setMessages(messages);
               }
-            )
+            })
           } else {
             const errorMessage: string = 'Conversation ' + location.pathname + ' not found';
             NotificationService.handleError(errorMessage, CONVERSATION_NOT_FOUND);
@@ -223,7 +144,6 @@ const MainPage: React.FC<MainPageProps> = ({className, isSidebarCollapsed, toggl
     messageBoxRef.current?.focusTextarea();
   }
 
-
   function getTitle(message: string): string {
     let title = message.trimStart(); // Remove leading newlines
     let firstNewLineIndex = title.indexOf('\n');
@@ -237,33 +157,20 @@ const MainPage: React.FC<MainPageProps> = ({className, isSidebarCollapsed, toggl
     const id = Date.now();
     const timestamp = Date.now();
     let shortenedText = getTitle(message);
-    let instructions = getFirstValidString(chatSettings?.instructions, userSettings.instructions, OPENAI_DEFAULT_SYSTEM_PROMPT, DEFAULT_INSTRUCTIONS);
+    let instructions = getFirstValidString(userSettings.instructions, OPENAI_DEFAULT_SYSTEM_PROMPT, DEFAULT_INSTRUCTIONS);
     const conversation: Conversation = {
       id: id,
-      gid: getEffectiveChatSettings().id,
+      gid: 0,
       timestamp: timestamp,
       title: shortenedText,
-      model: model?.id || DEFAULT_MODEL,
+      model: DEFAULT_MODEL,
       systemPrompt: instructions,
       messages: "[]",
     };
     setConversation(conversation);
     ConversationService.addConversation(conversation);
-    if (gid) {
-      navigate(`/g/${gid}/c/${conversation.id}`);
-      updateShowInSidebar(Number(gid), 1);
-    } else {
-      navigate(`/c/${conversation.id}`);
-    }
+    navigate(`/c/${conversation.id}`);
   }
-
-  const handleModelChange = (value: string | null) => {
-    if (value === null) {
-      setModel(null);
-    } else {
-      fetchModelById(value).then(setModel);
-    }
-  };
 
   const callApp = (message: string, fileDataRef: FileDataRef[]) => {
     if (!conversation) {
@@ -274,73 +181,46 @@ const MainPage: React.FC<MainPageProps> = ({className, isSidebarCollapsed, toggl
   }
 
   const addMessage = (role: Role, messageType: MessageType, message: string, fileDataRef: FileDataRef[], callback?: (callback: ChatMessage[]) => void) => {
-
-    let content: string = message;
-
     setMessages((prevMessages: ChatMessage[]) => {
-      const message: ChatMessage = {
+      const newMessage: ChatMessage = {
         id: prevMessages.length + 1,
         role: role,
         messageType: messageType,
-        content: content,
+        content: message,
         fileDataRef: fileDataRef,
       };
-      return [...prevMessages, message];
-    });
-
-    const newMessage: ChatMessage = {
-      id: messages.length + 1,
-      role: role,
-      messageType: messageType,
-      content: content,
-      fileDataRef: fileDataRef,
-    };
-    const updatedMessages = [...messages, newMessage];
-    if (callback) {
-      callback(updatedMessages);
-    }
-  };
-
-  function getEffectiveChatSettings(): ChatSettings {
-    let effectiveSettings = chatSettings;
-    if (!effectiveSettings) {
-      effectiveSettings = {
-        id: 0,
-        author: 'system',
-        name: 'default',
-        model: model?.id || DEFAULT_MODEL
+      const updatedMessages = [...prevMessages, newMessage];
+      if (callback) {
+        callback(updatedMessages);
       }
-    }
-    return effectiveSettings;
-  }
+      return updatedMessages;
+    });
+  };
 
   function sendMessage(updatedMessages: ChatMessage[]) {
     setLoading(true);
     clearInputArea();
-    let systemPrompt = getFirstValidString(conversation?.systemPrompt, chatSettings?.instructions, userSettings.instructions, OPENAI_DEFAULT_SYSTEM_PROMPT, DEFAULT_INSTRUCTIONS);
+    let systemPrompt = getFirstValidString(conversation?.systemPrompt, userSettings.instructions, OPENAI_DEFAULT_SYSTEM_PROMPT, DEFAULT_INSTRUCTIONS);
     let messages: ChatMessage[] = [{
       role: Role.System,
       content: systemPrompt
     } as ChatMessage, ...updatedMessages];
 
-    let effectiveSettings = getEffectiveChatSettings();
-
-    ChatService.sendMessageStreamed(effectiveSettings, messages, handleStreamedResponse)
+    ChatService.sendMessageStreamed(DEFAULT_MODEL, messages, handleStreamedResponse)
       .then((response: ChatCompletion) => {
         // nop
       })
       .catch(err => {
-          if (err instanceof CustomError) {
-            const message: string = err.message;
-            setLoading(false);
-            addMessage(Role.Assistant, MessageType.Error, message, []);
-          } else {
-            NotificationService.handleUnexpectedError(err, 'Failed to send message to openai.');
-          }
+        if (err instanceof CustomError) {
+          const message: string = err.message;
+          setLoading(false);
+          addMessage(Role.Assistant, MessageType.Error, message, []);
+        } else {
+          NotificationService.handleUnexpectedError(err, 'Failed to send message to openai.');
         }
-      ).finally(() => {
-      setLoading(false); // Stop loading here, whether successful or not
-    });
+      }).finally(() => {
+        setLoading(false); // Stop loading here, whether successful or not
+      });
   }
 
   function handleStreamedResponse(content: string, fileDataRef: FileDataRef[]) {
@@ -348,11 +228,11 @@ const MainPage: React.FC<MainPageProps> = ({className, isSidebarCollapsed, toggl
       let isNew: boolean = false;
       try {
         // todo: this shouldn't be necessary
-        if (prevMessages.length == 0) {
+        if (prevMessages.length === 0) {
           console.error('prevMessages should not be empty in handleStreamedResponse.');
           return [];
         }
-        if ((prevMessages[prevMessages.length - 1].role == Role.User)) {
+        if ((prevMessages[prevMessages.length - 1].role === Role.User)) {
           isNew = true;
         }
       } catch (e) {
@@ -397,10 +277,6 @@ const MainPage: React.FC<MainPageProps> = ({className, isSidebarCollapsed, toggl
     messageBoxRef.current?.clearInputValue();
   };
 
-  const getTextAreaValue = () => {
-    const value = messageBoxRef.current?.getTextValue();
-  };
-
   const handleUserScroll = (isAtBottom: boolean) => {
     setAllowAutoScroll(isAtBottom);
     setShowScrollButton(!isAtBottom);
@@ -414,7 +290,7 @@ const MainPage: React.FC<MainPageProps> = ({className, isSidebarCollapsed, toggl
     iconContainer.className = 'h-5 w-5';
 
     const root = ReactDOM.createRoot(iconContainer);
-    root.render(<ArrowUturnDownIcon/>);
+    root.render(<ArrowUturnDownIcon />);
 
     button.appendChild(iconContainer);
     // Stop propagation for mousedown and mouseup to avoid affecting other event listeners
@@ -483,24 +359,13 @@ const MainPage: React.FC<MainPageProps> = ({className, isSidebarCollapsed, toggl
         <main
           className="relative h-full transition-width flex flex-col overflow-hidden items-stretch flex-1"
           onMouseUp={handleMouseUp}>
-          {gid ? (
-            <div
-              className={`inline-block absolute top-0 left-0 z-50 ${isSidebarCollapsed ? 'sidebar-collapsed-margin' : 'sidebar-expanded-margin'}`}>
-              <ChatSettingDropdownMenu chatSetting={chatSettings}/>
-            </div>
-          ) : null
-          }
-          {!conversation && chatSettings ? (
-            <CustomChatSplash className=" -translate-y-[10%] " chatSettings={chatSettings}/>
-          ) : null}
           <Chat chatBlocks={messages} onChatScroll={handleUserScroll} conversation={conversation}
-                model={model?.id || DEFAULT_MODEL}
-                onModelChange={handleModelChange} allowAutoScroll={allowAutoScroll} loading={loading}/>
-          {/*</div>*/}
+            model={DEFAULT_MODEL}
+            allowAutoScroll={allowAutoScroll} loading={loading} />
           {/* Absolute container for the ScrollToBottomButton */}
           {showScrollButton && (
             <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 mb-10 z-10">
-              <ScrollToBottomButton onClick={scrollToBottom}/>
+              <ScrollToBottomButton onClick={scrollToBottom} />
             </div>
           )}
           {/* MessageBox remains at the bottom */}
@@ -509,7 +374,7 @@ const MainPage: React.FC<MainPageProps> = ({className, isSidebarCollapsed, toggl
             callApp={callApp}
             loading={loading}
             setLoading={setLoading}
-            allowImageAttachment={model === null || model?.image_support || false ? 'yes' : (!conversation ? 'warn' : 'no')}
+            allowImageAttachment={true}
           />
         </main>
       </div>
@@ -518,4 +383,3 @@ const MainPage: React.FC<MainPageProps> = ({className, isSidebarCollapsed, toggl
 }
 
 export default MainPage;
-

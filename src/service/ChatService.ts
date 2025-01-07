@@ -1,11 +1,10 @@
-import {modelDetails, OpenAIModel} from "../models/model";
-import {ChatCompletion, ChatCompletionMessage, ChatCompletionRequest, ChatMessage, ChatMessagePart, Role} from "../models/ChatCompletion";
-import {OPENAI_API_KEY} from "../config";
-import {CustomError} from "./CustomError";
-import {CHAT_COMPLETIONS_ENDPOINT, MODELS_ENDPOINT} from "../constants/apiEndpoints";
-import {ChatSettings} from "../models/ChatSettings";
-import {CHAT_STREAM_DEBOUNCE_TIME, DEFAULT_MODEL} from "../constants/appConstants";
-import {NotificationService} from '../service/NotificationService';
+import { modelDetails, OpenAIModel } from "../models/model";
+import { ChatCompletion, ChatCompletionMessage, ChatCompletionRequest, ChatMessage, ChatMessagePart, Role } from "../models/ChatCompletion";
+import { OPENAI_API_KEY } from "../config";
+import { CustomError } from "./CustomError";
+import { CHAT_COMPLETIONS_ENDPOINT, MODELS_ENDPOINT } from "../constants/apiEndpoints";
+import { CHAT_STREAM_DEBOUNCE_TIME } from "../constants/appConstants";
+import { NotificationService } from '../service/NotificationService';
 import { FileData, FileDataRef } from "../models/FileData";
 
 interface CompletionChunk {
@@ -27,7 +26,6 @@ interface CompletionChunkChoice {
 export class ChatService {
   private static models: Promise<OpenAIModel[]> | null = null;
   static abortController: AbortController | null = null;
-
 
   static async mapChatMessagesToCompletionMessages(modelId: string, messages: ChatMessage[]): Promise<ChatCompletionMessage[]> {
     const model = await this.getModelById(modelId); // Retrieve the model details
@@ -62,7 +60,6 @@ export class ChatService {
     });
   }
 
-
   static async sendMessage(messages: ChatMessage[], modelId: string): Promise<ChatCompletion> {
     let endpoint = CHAT_COMPLETIONS_ENDPOINT;
     let headers = {
@@ -70,7 +67,7 @@ export class ChatService {
       "Authorization": `Bearer ${OPENAI_API_KEY}`
     };
 
-    const mappedMessages = await ChatService.mapChatMessagesToCompletionMessages(modelId,messages);
+    const mappedMessages = await ChatService.mapChatMessagesToCompletionMessages(modelId, messages);
 
     const requestBody: ChatCompletionRequest = {
       model: modelId,
@@ -105,7 +102,7 @@ export class ChatService {
       }
 
       this.callDeferred = window.setTimeout(() => {
-        callback(this.accumulatedContent,[]); // Pass the accumulated content to the original callback
+        callback(this.accumulatedContent, []); // Pass the accumulated content to the original callback
         this.lastCallbackTime = Date.now();
         this.accumulatedContent = ""; // Reset the accumulated content after the callback is called
       }, delay - timeSinceLastCall < 0 ? 0 : delay - timeSinceLastCall);  // Ensure non-negative delay
@@ -114,7 +111,7 @@ export class ChatService {
     };
   }
 
-  static async sendMessageStreamed(chatSettings: ChatSettings, messages: ChatMessage[], callback: (content: string,fileDataRef: FileDataRef[]) => void): Promise<any> {
+  static async sendMessageStreamed(modelId: string, messages: ChatMessage[], callback: (content: string, fileDataRef: FileDataRef[]) => void): Promise<any> {
     const debouncedCallback = this.debounceCallback(callback);
     this.abortController = new AbortController();
     let endpoint = CHAT_COMPLETIONS_ENDPOINT;
@@ -124,20 +121,12 @@ export class ChatService {
     };
 
     const requestBody: ChatCompletionRequest = {
-      model: DEFAULT_MODEL,
+      model: modelId,
       messages: [],
       stream: true,
     };
 
-    if (chatSettings) {
-      const {model, temperature, top_p, seed} = chatSettings;
-      requestBody.model = model ?? requestBody.model;
-      requestBody.temperature = temperature ?? requestBody.temperature;
-      requestBody.top_p = top_p ?? requestBody.top_p;
-      requestBody.seed = seed ?? requestBody.seed;
-    }
-
-    const mappedMessages = await ChatService.mapChatMessagesToCompletionMessages(requestBody.model,messages);
+    const mappedMessages = await ChatService.mapChatMessagesToCompletionMessages(requestBody.model, messages);
     requestBody.messages = mappedMessages;
 
     let response: Response;
@@ -179,7 +168,7 @@ export class ChatService {
       try {
         while (true) {
           const streamChunk = await reader.read();
-          const {done, value} = streamChunk;
+          const { done, value } = streamChunk;
           if (done) {
             break;
           }
@@ -213,13 +202,13 @@ export class ChatService {
             return o;
           }).filter(Boolean); // Filter out undefined values which may be a result of the [DONE] term check
 
-          let accumulatedContet = '';
+          let accumulatedContent = '';
           chunks.forEach(chunk => {
             chunk.choices.forEach(choice => {
               if (choice.delta && choice.delta.content) {  // Check if delta and content exist
                 const content = choice.delta.content;
                 try {
-                  accumulatedContet += content;
+                  accumulatedContent += content;
                 } catch (err) {
                   if (err instanceof Error) {
                     console.error(err.message);
@@ -231,7 +220,7 @@ export class ChatService {
               }
             });
           });
-          debouncedCallback(accumulatedContet);
+          debouncedCallback(accumulatedContent);
 
           if (DONE) {
             return;
@@ -289,9 +278,7 @@ export class ChatService {
         });
       }
     }
-
   }
-
 
   static fetchModels = (): Promise<OpenAIModel[]> => {
     if (this.models !== null) {
@@ -302,42 +289,41 @@ export class ChatService {
         'Authorization': `Bearer ${OPENAI_API_KEY}`,
       },
     })
-        .then(response => {
-          if (!response.ok) {
-            return response.json().then(err => {
-              throw new Error(err.error.message);
-            });
-          }
-          return response.json();
-        })
-        .catch(err => {
-          throw new Error(err.message || err);
-        })
-        .then(data => {
-          const models: OpenAIModel[] = data.data;
-          // Filter, enrich with contextWindow from the imported constant, and sort
-          return models
-              .filter(model => model.id.startsWith("gpt-"))
-              .map(model => {
-                const details = modelDetails[model.id] || {
-                  contextWindowSize: 0,
-                  knowledgeCutoffDate: '',
-                  imageSupport: false,
-                  preferred: false,
-                  deprecated: false,
-                };
-                return {
-                  ...model,
-                  context_window: details.contextWindowSize,
-                  knowledge_cutoff: details.knowledgeCutoffDate,
-                  image_support: details.imageSupport,
-                  preferred: details.preferred,
-                  deprecated: details.deprecated,
-                };
-              })
-              .sort((a, b) => b.id.localeCompare(a.id));
-        });
+      .then(response => {
+        if (!response.ok) {
+          return response.json().then(err => {
+            throw new Error(err.error.message);
+          });
+        }
+        return response.json();
+      })
+      .catch(err => {
+        throw new Error(err.message || err);
+      })
+      .then(data => {
+        const models: OpenAIModel[] = data.data;
+        // Filter, enrich with contextWindow from the imported constant, and sort
+        return models
+          .filter(model => model.id.startsWith("gpt-"))
+          .map(model => {
+            const details = modelDetails[model.id] || {
+              contextWindowSize: 0,
+              knowledgeCutoffDate: '',
+              imageSupport: false,
+              preferred: false,
+              deprecated: false,
+            };
+            return {
+              ...model,
+              context_window: details.contextWindowSize,
+              knowledge_cutoff: details.knowledgeCutoffDate,
+              image_support: details.imageSupport,
+              preferred: details.preferred,
+              deprecated: details.deprecated,
+            };
+          })
+          .sort((a, b) => b.id.localeCompare(a.id));
+      });
     return this.models;
   };
 }
-

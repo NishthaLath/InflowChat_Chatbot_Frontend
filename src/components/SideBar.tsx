@@ -1,11 +1,10 @@
 import React, {useState} from 'react';
-import {Link, useNavigate} from 'react-router-dom';
-import {Cog8ToothIcon, PlusIcon, Squares2X2Icon} from "@heroicons/react/24/outline";
+import {useNavigate} from 'react-router-dom';
+import {Cog8ToothIcon, PlusIcon} from "@heroicons/react/24/outline";
 import {CloseSideBarIcon, iconProps, OpenSideBarIcon} from "../svg";
 import {useTranslation} from 'react-i18next';
 import Tooltip from "./Tooltip";
 import UserSettingsModal from './UserSettingsModal';
-import ChatShortcuts from './ChatShortcuts';
 import ConversationList from "./ConversationList";
 
 interface SidebarProps {
@@ -91,11 +90,6 @@ const Sidebar: React.FC<SidebarProps> = ({className, isSidebarCollapsed, toggleS
                     </button>
                   </Tooltip>
                 </div>
-                <Link to="/explore" className="flex items-center m-2 dark:bg-gray-900 dark:text-gray-100 text-gray-900">
-                  <Squares2X2Icon  {...iconProps} className="mt-1 mr-2"/>
-                  <span>{t('custom-chats-header')}</span>
-                </Link>
-                <ChatShortcuts/>
                 <ConversationList/>
               </nav>
             </div>

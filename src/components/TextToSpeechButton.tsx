@@ -6,7 +6,7 @@ import {RotatingLines} from 'react-loader-spinner';
 import {UserContext} from '../UserContext';
 import {iconProps} from "../svg";
 import {useTranslation} from "react-i18next";
-import "./Button.css";
+import "../styles/Button.css";
 import Tooltip from './Tooltip';
 
 interface TextToSpeechButtonProps {

@@ -10,26 +10,20 @@ import React, {
   useState
 } from 'react';
 import {
-  IMAGE_MIME_TYPES,
-  MAX_IMAGE_ATTACHMENTS_PER_MESSAGE,
   MAX_ROWS,
-  SNIPPET_MARKERS,
-  TEXT_MIME_TYPES
+  SNIPPET_MARKERS
 } from '../constants/appConstants';
 import {SubmitButton} from "./SubmitButton";
 import {useTranslation} from 'react-i18next';
 import {ChatService} from "../service/ChatService";
-import {PaperClipIcon, StopCircleIcon} from "@heroicons/react/24/outline";
+import {StopCircleIcon} from "@heroicons/react/24/outline";
 import Tooltip from "./Tooltip";
-import FileDataPreview from './FileDataPreview';
-import {FileDataRef} from '../models/FileData';
-import {preprocessImage} from '../utils/ImageUtils';
 
 interface MessageBoxProps {
   callApp: Function;
   loading: boolean;
   setLoading: (loading: boolean) => void;
-  allowImageAttachment: string;
+  allowImageAttachment: Boolean;
 }
 
 // Methods exposed to clients using useRef<MessageBoxHandles>
@@ -39,7 +33,6 @@ export interface MessageBoxHandles {
   reset: () => void;
   resizeTextArea: () => void;
   focusTextarea: () => void;
-  pasteText: (text: string) => void;
 }
 
 const MessageBox =
@@ -50,7 +43,6 @@ const MessageBox =
       const [isTextEmpty, setIsTextEmpty] = useState(true);
       const textAreaRef = useRef<HTMLTextAreaElement>(null);
       const resizeTimeoutRef = useRef<number | null>(null);
-      const [fileDataRef, setFileDataRef] = useState<FileDataRef[]>([]);
 
       const setTextValue = (value: string) => {
         textValue.current = value;
@@ -76,7 +68,6 @@ const MessageBox =
           clearValueAndUndoHistory(textAreaRef);
           setTextValue('');
           setTextAreaValue('');
-          setFileDataRef([]);
         },
         resizeTextArea: () => {
           if (textAreaRef.current) {
@@ -87,9 +78,6 @@ const MessageBox =
           if (textAreaRef.current) {
             textAreaRef.current.focus();
           }
-        },
-        pasteText: (text: string) => {
-          insertTextAtCursorPosition(text);
         },
       }));
 
@@ -133,7 +121,6 @@ const MessageBox =
       };
 
       function clearValueAndUndoHistory(textAreaRef: React.RefObject<HTMLTextAreaElement>) {
-        setFileDataRef([]);
         setTextValue('');
         setTextAreaValue('');
       }
@@ -153,16 +140,6 @@ const MessageBox =
           setTextValue(newTextValue);
           setTextAreaValue(newTextValue);
 
-          // Dispatch a new InputEvent for the insertion of text
-          // This event should be undoable
-          // const inputEvent = new InputEvent('input', {
-          //   bubbles: true,
-          //   cancelable: true,
-          //   inputType: 'insertText',
-          //   data: textToInsert,
-          // });
-          // textArea.dispatchEvent(inputEvent);
-
           // Move the cursor to the end of the inserted text
           const newCursorPos = startPos + textToInsert.length;
           setTimeout(() => {
@@ -177,49 +154,8 @@ const MessageBox =
       };
 
       const handlePaste = (event: React.ClipboardEvent<HTMLTextAreaElement>) => {
-
-        if (event.clipboardData && event.clipboardData.items) {
-          const items = event.clipboardData.items;
-
-          for (const item of items) {
-            if (item.type.indexOf("image") === 0 && allowImageAttachment !== 'no') {
-              event.preventDefault();
-              const file = item.getAsFile();
-              if (file) {
-                const reader = new FileReader();
-                reader.onload = (loadEvent) => {
-                  if (loadEvent.target !== null) {
-                    const base64Data = loadEvent.target.result;
-
-                    if (typeof base64Data === 'string') {
-                      preprocessImage(file, (base64Data, processedFile) => {
-                        setFileDataRef((prevData) => [...prevData, {
-                          id: 0,
-                          fileData: {
-                            data: base64Data,
-                            type: processedFile.type,
-                            source: 'pasted',
-                            filename: 'pasted-image',
-                          }
-                        }]);
-                      });
-                      if (allowImageAttachment == 'warn') {
-                        // todo: could warn user
-                      }
-                    }
-                  }
-                };
-                reader.readAsDataURL(file);
-              }
-            } else {
-
-            }
-          }
-        }
-
         // Get the pasted text from the clipboard
         const pastedText = event.clipboardData.getData('text/plain');
-
 
         // Check if the pasted text contains the snippet markers
         const containsBeginMarker = pastedText.includes(SNIPPET_MARKERS.begin);
@@ -256,7 +192,7 @@ const MessageBox =
               if (textAreaRef.current) {
                 setTextValue(textAreaRef.current.value);
               }
-              callApp(textAreaRef.current?.value || '', (allowImageAttachment === 'yes') ? fileDataRef : []);
+              callApp(textAreaRef.current?.value || '');
             }
           }
         }
@@ -274,7 +210,7 @@ const MessageBox =
         if (textAreaRef.current) {
           setTextValue(textAreaRef.current.value);
         }
-        callApp(textAreaRef.current?.value || '', (allowImageAttachment === 'yes') ? fileDataRef : []);
+        callApp(textAreaRef.current?.value || '');
         if (textAreaRef.current) {
           textAreaRef.current.style.height = 'auto';
         }
@@ -285,86 +221,6 @@ const MessageBox =
 
         ChatService.cancelStream();
         setLoading(false);
-      };
-
-
-      const handleAttachment = (event: React.MouseEvent<HTMLButtonElement>) => {
-        event.preventDefault();
-        event.stopPropagation();
-
-        // Create an input element of type file
-        const fileInput = document.createElement('input');
-        fileInput.setAttribute('type', 'file');
-        fileInput.setAttribute('multiple', '');
-        const acceptedMimeTypes = ((allowImageAttachment !== 'no') ? IMAGE_MIME_TYPES : []).concat(TEXT_MIME_TYPES).join(',');
-        fileInput.setAttribute('accept', acceptedMimeTypes);
-        fileInput.click();
-
-        // Event listener for file selection
-        fileInput.onchange = (e) => {
-          const files = fileInput.files;
-          if (files) {
-            Array.from(files).forEach((file) => {
-              // Check if the file is an image
-              if (file.type.startsWith('image/')) {
-                if (fileDataRef.length >= MAX_IMAGE_ATTACHMENTS_PER_MESSAGE) {
-                  return;
-                }
-                preprocessImage(file, (base64Data, processedFile) => {
-                  setFileDataRef((prev) => [...prev, {
-                    id: 0,
-                    fileData: {
-                      data: base64Data,
-                      type: processedFile.type,
-                      source: 'filename',
-                      filename: processedFile.name,
-                    }
-                  }]);
-                  if (allowImageAttachment == 'warn') {
-                    // todo: could warn user
-                  }
-                });
-              }
-              // Else, if the file is a text file
-              else if (file.type.startsWith('text/')) {
-                const reader = new FileReader();
-
-                reader.onloadend = () => {
-                  const textContent = reader.result as string;
-                  const formattedText = `File: ${file.name}:\n${SNIPPET_MARKERS.begin}\n${textContent}\n${SNIPPET_MARKERS.end}\n`;
-                  insertTextAtCursorPosition(formattedText);
-
-                  // Focus the textarea and place the cursor at the end of the text
-                  if (textAreaRef.current) {
-                    const textArea = textAreaRef.current;
-                    textArea.focus();
-
-                    const newCursorPos = textArea.value.length;
-
-                    // Use setTimeout to ensure the operation happens in the next tick after render reflow
-                    setTimeout(() => {
-                      textArea.selectionStart = newCursorPos;
-                      textArea.selectionEnd = newCursorPos;
-                      handleAutoResize();
-                      textArea.scrollTop = textArea.scrollHeight;
-                    }, 0);
-                  }
-                };
-
-                reader.onerror = (errorEvent) => {
-                  console.error("File reading error:", errorEvent.target?.error);
-                };
-
-                reader.readAsText(file);
-              }
-            });
-          }
-        };
-      };
-
-
-      const handleRemoveFileData = (index: number, fileRef: FileDataRef) => {
-        setFileDataRef(fileDataRef.filter((_, i) => i !== index));
       };
 
       return (
@@ -379,24 +235,8 @@ const MessageBox =
                dark:text-white dark:bg-gray-850 border border-black/10 dark:border-gray-900/50
                focus-within:border-black/30 dark:focus-within:border-gray-500/50"
             >
-              {/* FileDataPreview Full Width at the Top */}
-              {fileDataRef.length > 0 && (
-                <div className="w-full">
-                  <FileDataPreview fileDataRef={fileDataRef} removeFileData={handleRemoveFileData}
-                                   allowImageAttachment={allowImageAttachment == 'yes'}/>
-                </div>
-              )}
               {/* Container for Textarea and Buttons */}
               <div className="flex items-center w-full relative space-x-2">
-                {/* Attachment Button */}
-                <div className="flex items-center justify-start">
-                  <button
-                    onClick={(e) => handleAttachment(e)}
-                    className="p-1 relative z-10">
-                    <PaperClipIcon className="h-6 w-6"/>
-                  </button>
-                </div>
-
                 {/* Grammarly extension container */}
                 <div className="flex items-center " style={{ flexShrink: 0, minWidth: 'fit-content' }}>
                   {/* Grammarly extension buttons will render here without overlapping */}

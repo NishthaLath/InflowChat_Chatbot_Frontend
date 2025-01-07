@@ -4,6 +4,7 @@ import {I18nextProvider} from 'react-i18next';
 import i18n from './i18n';
 import Sidebar from "./components/SideBar";
 import MainPage from "./components/MainPage";
+import LoginPage from "./components/LoginPage"; // Import LoginPage
 import './App.css';
 import {ToastContainer} from "react-toastify";
 
@@ -28,6 +29,7 @@ const App = () => {
           {...props}
       />
   );
+
   return (
       <BrowserRouter>
         <I18nextProvider i18n={i18n}>
@@ -41,9 +43,9 @@ const App = () => {
               />
               <div className="flex-grow h-full overflow-hidden">
                 <Routes>
-                  <Route path="/" element={<MainPageWithProps/>}/>
+                  <Route path="/" element={<LoginPage/>}/> {/* Set LoginPage as the main page */}
+                  <Route path="/chatbot" element={<MainPageWithProps/>}/> {/* Redirect to MainPage after login */}
                   <Route path="/c/:id" element={<MainPageWithProps/>}/>
-                  // Use the wrapper for new routes
                   <Route path="/g/:gid" element={<MainPageWithProps/>}/>
                   <Route path="/g/:gid/c/:id" element={<MainPageWithProps/>}/>
                   <Route path="*" element={<Navigate to="/" replace/>}/>

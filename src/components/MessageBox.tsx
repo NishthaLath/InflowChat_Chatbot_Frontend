@@ -33,6 +33,7 @@ export interface MessageBoxHandles {
   reset: () => void;
   resizeTextArea: () => void;
   focusTextarea: () => void;
+  pasteText: (text: string) => void; // Add this line
 }
 
 const MessageBox =
@@ -78,6 +79,9 @@ const MessageBox =
           if (textAreaRef.current) {
             textAreaRef.current.focus();
           }
+        },
+        pasteText: (text: string) => {
+          insertTextAtCursorPosition(text);
         },
       }));
 

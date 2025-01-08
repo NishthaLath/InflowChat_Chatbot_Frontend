@@ -1,7 +1,7 @@
 import React, { useContext, useEffect, useRef, useState } from 'react';
 import { ChatService } from "../service/ChatService";
 import Chat from "./Chat";
-import { ChatCompletion, ChatMessage, MessageType, Role } from "../models/ChatCompletion";
+import { ChatCompletion, ChatMessage, MessageType, Role, FileDataRef } from "../models/ChatCompletion";
 import { ScrollToBottomButton } from "./ScrollToBottomButton";
 import { OPENAI_DEFAULT_SYSTEM_PROMPT } from "../config";
 import { CustomError } from "../service/CustomError";

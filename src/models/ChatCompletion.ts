@@ -1,5 +1,3 @@
-import { FileDataRef } from "./FileData";
-
 // Ref: https://platform.openai.com/docs/api-reference/chat/create
 export enum Role {
   System = 'system',
@@ -87,4 +85,10 @@ export enum MessageType {
 
 export function getMessageType(messageTypeString: string): MessageType {
   return MessageType[messageTypeString as keyof typeof MessageType];
+}
+
+export interface FileDataRef {
+  id: number;
+  name: string;
+  url: string;
 }

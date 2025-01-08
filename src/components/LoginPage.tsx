@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import '../styles/LoginPage.css';
+import styles from '../styles/LoginPage.module.css'; // Use CSS modules
 
 interface LoginPageProps {
   setIsAuthenticated: (isAuthenticated: boolean) => void;
@@ -13,21 +13,23 @@ const LoginPage: React.FC<LoginPageProps> = ({ setIsAuthenticated }) => {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    // Add your login logic here
+    // Basic authentication logic
     if (username === 'admin' && password === 'password') {
       setIsAuthenticated(true);
-      navigate('/');
+      navigate('/'); // Redirect to the main page
     } else {
-      alert('Invalid credentials');
+      alert('Invalid credentials. Please try again.');
     }
   };
 
   return (
-    <div className="login-page">
-      <div className="login-container">
-        <form className="login-form" onSubmit={handleLogin}>
-          <h2>Login</h2>
-          <div className="form-group">
+    <div className={styles.loginPage}>
+      <div className={styles.loginContainer}>
+        <img src="/logo.png" alt="Company Logo" className={styles.logo} />
+        <h1>Welcome to RikkeiSoft!</h1>
+        <p>To continue, kindly log in with your account.</p>
+        <form onSubmit={handleLogin} className={styles.loginForm}>
+          <div className={styles.formGroup}>
             <label htmlFor="username">Username</label>
             <input
               type="text"
@@ -37,7 +39,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ setIsAuthenticated }) => {
               required
             />
           </div>
-          <div className="form-group">
+          <div className={styles.formGroup}>
             <label htmlFor="password">Password</label>
             <input
               type="password"
@@ -47,7 +49,9 @@ const LoginPage: React.FC<LoginPageProps> = ({ setIsAuthenticated }) => {
               required
             />
           </div>
-          <button type="submit">Login</button>
+          <button type="submit" className={styles.loginButton}>
+            Log In
+          </button>
         </form>
       </div>
     </div>

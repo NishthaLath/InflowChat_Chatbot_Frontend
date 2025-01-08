@@ -1,11 +1,11 @@
-import { modelDetails, OpenAIModel } from "../models/model";
+import { modelDetails, OpenAIModel, ModelDetails } from "../models/model";
 import { ChatCompletion, ChatCompletionMessage, ChatCompletionRequest, ChatMessage, ChatMessagePart, Role } from "../models/ChatCompletion";
 import { OPENAI_API_KEY } from "../config";
 import { CustomError } from "./CustomError";
 import { CHAT_COMPLETIONS_ENDPOINT, MODELS_ENDPOINT } from "../constants/apiEndpoints";
 import { CHAT_STREAM_DEBOUNCE_TIME } from "../constants/appConstants";
 import { NotificationService } from '../service/NotificationService';
-import { FileData, FileDataRef } from "../models/FileData";
+// Removed import for FileData and FileDataRef
 
 interface CompletionChunk {
   id: string;
@@ -39,20 +39,8 @@ export class ChatService {
         text: message.content
       }];
 
-      if (model.image_support && message.fileDataRef) {
-        message.fileDataRef.forEach((fileRef) => {
-          const fileUrl = fileRef.fileData!.data;
-          if (fileUrl) {
-            const fileType = (fileRef.fileData!.type.startsWith('image')) ? 'image_url' : fileRef.fileData!.type;
-            contentParts.push({
-              type: fileType,
-              image_url: {
-                url: fileUrl
-              }
-            });
-          }
-        });
-      }
+      // Removed logic for handling fileDataRef
+
       return {
         role: message.role,
         content: contentParts,
@@ -91,7 +79,7 @@ export class ChatService {
   private static callDeferred: number | null = null;
   private static accumulatedContent: string = ""; // To accumulate content between debounced calls
 
-  static debounceCallback(callback: (content: string, fileDataRef: FileDataRef[]) => void, delay: number = CHAT_STREAM_DEBOUNCE_TIME) {
+  static debounceCallback(callback: (content: string) => void, delay: number = CHAT_STREAM_DEBOUNCE_TIME) {
     return (content: string) => {
       this.accumulatedContent += content; // Accumulate content on each call
       const now = Date.now();
@@ -102,7 +90,7 @@ export class ChatService {
       }
 
       this.callDeferred = window.setTimeout(() => {
-        callback(this.accumulatedContent, []); // Pass the accumulated content to the original callback
+        callback(this.accumulatedContent); // Pass the accumulated content to the original callback
         this.lastCallbackTime = Date.now();
         this.accumulatedContent = ""; // Reset the accumulated content after the callback is called
       }, delay - timeSinceLastCall < 0 ? 0 : delay - timeSinceLastCall);  // Ensure non-negative delay
@@ -111,7 +99,7 @@ export class ChatService {
     };
   }
 
-  static async sendMessageStreamed(modelId: string, messages: ChatMessage[], callback: (content: string, fileDataRef: FileDataRef[]) => void): Promise<any> {
+  static async sendMessageStreamed(modelId: string, messages: ChatMessage[], callback: (content: string) => void): Promise<any> {
     const debouncedCallback = this.debounceCallback(callback);
     this.abortController = new AbortController();
     let endpoint = CHAT_COMPLETIONS_ENDPOINT;

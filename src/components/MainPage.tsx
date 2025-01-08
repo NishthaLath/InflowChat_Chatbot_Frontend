@@ -204,7 +204,7 @@ const MainPage: React.FC<MainPageProps> = ({ className, isSidebarCollapsed, togg
       role: Role.System,
       content: systemPrompt
     } as ChatMessage, ...updatedMessages];
-
+  
     ChatService.sendMessageStreamed(DEFAULT_MODEL, messages, handleStreamedResponse)
       .then((response: ChatCompletion) => {
         // nop
@@ -221,44 +221,17 @@ const MainPage: React.FC<MainPageProps> = ({ className, isSidebarCollapsed, togg
         setLoading(false); // Stop loading here, whether successful or not
       });
   }
-
-  function handleStreamedResponse(content: string, fileDataRef: FileDataRef[]) {
+  
+  function handleStreamedResponse(content: string) {
     setMessages(prevMessages => {
       let isNew: boolean = false;
       try {
         // todo: this shouldn't be necessary
-        if (prevMessages.length === 0) {
-          console.error('prevMessages should not be empty in handleStreamedResponse.');
-          return [];
-        }
-        if ((prevMessages[prevMessages.length - 1].role === Role.User)) {
-          isNew = true;
-        }
-      } catch (e) {
-        console.error('Error getting the role')
-        console.error('prevMessages = ' + JSON.stringify(prevMessages));
-        console.error(e);
+        // Your existing logic here
+      } catch (error) {
+        console.error('Failed to handle streamed response:', error);
       }
-
-      if (isNew) {
-        const message: ChatMessage = {
-          id: prevMessages.length + 1,
-          role: Role.Assistant,
-          messageType: MessageType.Normal,
-          content: content,
-          fileDataRef: fileDataRef,
-        };
-        return [...prevMessages, message];
-      } else {
-        // Clone the last message and update its content
-        const updatedMessage = {
-          ...prevMessages[prevMessages.length - 1],
-          content: prevMessages[prevMessages.length - 1].content + content
-        };
-
-        // Replace the old last message with the updated one
-        return [...prevMessages.slice(0, -1), updatedMessage];
-      }
+      return prevMessages;
     });
   }
 

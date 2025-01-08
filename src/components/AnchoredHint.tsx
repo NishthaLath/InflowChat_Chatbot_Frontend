@@ -1,4 +1,6 @@
 // AnchoredHint.tsx
+
+// File to manage the user's theme settings
 import React, { useContext } from 'react';
 import * as RadixTooltip from '@radix-ui/react-tooltip';
 import { UserContext } from "../UserContext";

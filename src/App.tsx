@@ -52,11 +52,18 @@ const App: React.FC = () => {
             path="/c/:id"
             element={
               isAuthenticated ? (
-                <MainPage
-                  className="main-content"
-                  isSidebarCollapsed={isSidebarCollapsed}
-                  toggleSidebarCollapse={toggleSidebarCollapse}
-                />
+                <div className="flex">
+                  <Sidebar
+                    className="sidebar-container flex-shrink-0"
+                    isSidebarCollapsed={isSidebarCollapsed}
+                    toggleSidebarCollapse={toggleSidebarCollapse}
+                  />
+                  <MainPage
+                    className="main-content"
+                    isSidebarCollapsed={isSidebarCollapsed}
+                    toggleSidebarCollapse={toggleSidebarCollapse}
+                  />
+                </div>
               ) : (
                 <Navigate to="/login" replace />
               )

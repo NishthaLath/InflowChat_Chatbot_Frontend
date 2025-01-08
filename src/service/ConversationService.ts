@@ -1,6 +1,5 @@
 import Dexie from 'dexie';
-import {EventEmitter} from "./EventEmitter";
-import FileDataService from './FileDataService';
+import { EventEmitter } from "./EventEmitter";
 import { ChatMessage } from '../models/ChatCompletion';
 
 export interface Conversation {
@@ -19,7 +18,6 @@ export interface ConversationChangeEvent {
   id: number,
   conversation?: Conversation, // not set on delete
 }
-
 
 class ConversationDB extends Dexie {
   conversations: Dexie.Table<Conversation, number>;
@@ -43,23 +41,7 @@ class ConversationService {
   }
 
   static async getChatMessages(conversation: Conversation): Promise<ChatMessage[]> {
-    const messages: ChatMessage[] = JSON.parse(conversation.messages);
-
-    const messagesWithFileDataPromises = messages.map(async (message) => {
-      if (!message.fileDataRef) {
-        return message;
-      }
-      const fileDataRefsPromises = (message.fileDataRef || []).map(async (fileDataRef) => {
-        fileDataRef.fileData = await FileDataService.getFileData(fileDataRef.id) || null;
-        return fileDataRef;
-      });
-
-      message.fileDataRef = await Promise.all(fileDataRefsPromises);
-      return message;
-    });
-
-    // Wait for all messages to have their fileDataRefs loaded
-    return Promise.all(messagesWithFileDataPromises);
+    return JSON.parse(conversation.messages);
   }
 
   static async searchConversationsByTitle(searchString: string): Promise<Conversation[]> {
@@ -69,14 +51,12 @@ class ConversationService {
       .toArray();
   }
 
-
   // todo: Currently we are not indexing messages since it is expensive
   static async searchWithinConversations(searchString: string): Promise<Conversation[]> {
     return db.conversations
         .filter(conversation => conversation.messages.includes(searchString))
         .toArray();
   }
-
 
   // This is adding a new conversation object with empty messages "[]"
   static async addConversation(conversation: Conversation): Promise<void> {
@@ -88,32 +68,11 @@ class ConversationService {
   static deepCopyChatMessages(messages: ChatMessage[]): ChatMessage[] {
     return messages.map(msg => ({
       ...msg,
-      fileDataRef: msg.fileDataRef?.map(fileRef => ({
-        ...fileRef,
-        fileData: fileRef.fileData ? { ...fileRef.fileData } : null,
-      }))
     }));
   }
 
   static async updateConversation(conversation: Conversation, messages: ChatMessage[]): Promise<void> {
     const messagesCopy = ConversationService.deepCopyChatMessages(messages);
-
-    for (let i = 0; i < messagesCopy.length; i++) {
-      const fileDataRefs = messagesCopy[i].fileDataRef;
-      if (fileDataRefs) {
-        for (let j = 0; j < fileDataRefs.length; j++) {
-          const fileRef = fileDataRefs[j];
-          if (fileRef.id === 0 && fileRef.fileData) {
-            const fileId = await FileDataService.addFileData(fileRef.fileData);
-            // Update the ID in both messagesCopy and the original messages array
-            fileDataRefs[j].id = fileId;
-            messages[i].fileDataRef![j].id = fileId;
-          }
-          // Set the fileData to null after processing
-          fileDataRefs[j].fileData = null;
-        }
-      }
-    }
 
     conversation.messages = JSON.stringify(messagesCopy);
     await db.conversations.put(conversation);
@@ -130,19 +89,7 @@ class ConversationService {
   static async deleteConversation(id: number): Promise<void> {
     const conversation = await db.conversations.get(id);
     if (conversation) {
-      const messages: ChatMessage[] = JSON.parse(conversation.messages);
-
-      for (let message of messages) {
-        if (message.fileDataRef && message.fileDataRef.length > 0) {
-          await Promise.all(message.fileDataRef.map(async (fileRef) => {
-            if (fileRef.id) {
-              await FileDataService.deleteFileData(fileRef.id);
-            }
-          }));
-        }
-      }
       await db.conversations.delete(id);
-
       let event: ConversationChangeEvent = {action: 'delete', id: id};
       conversationsEmitter.emit('conversationChangeEvent', event);
     } else {
@@ -152,7 +99,6 @@ class ConversationService {
 
   static async deleteAllConversations(): Promise<void> {
     await db.conversations.clear();
-    await FileDataService.deleteAllFileData();
     let event: ConversationChangeEvent = {action: 'delete', id: 0};
     conversationsEmitter.emit('conversationChangeEvent', event);
   }
@@ -173,7 +119,6 @@ class ConversationService {
       throw error;
     }
   }
-
 
   static async countConversationsByGid(id: number): Promise<number> {
     return db.conversations

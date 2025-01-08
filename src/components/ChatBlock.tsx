@@ -49,7 +49,6 @@ const ChatBlock: React.FC<Props> = ({block, loading, isLastBlock}) => {
     setEditedBlockContent(block.content);
   }
   const handleEditSave = () => {
-    // todo: notify main to change content block
     setIsEdit(false);
   }
 
@@ -130,18 +129,6 @@ const ChatBlock: React.FC<Props> = ({block, loading, isLastBlock}) => {
                 <div className="copy-button">
                   <CopyButton mode={CopyButtonMode.Compact} text={block.content}/>
                 </div>
-                {/*          {block.role === 'assistant' && (
-                    <div className="regenerate-button text-gray-400 visible">
-                        <button className="flex gap-2" onClick={handleRegenerate}>
-                            <ArrowPathRoundedSquareIcon {...iconProps}/>
-                        </button>
-                    </div>
-                  )}
-                  <div className="regenerate-button text-gray-400 visible">
-                      <button className="flex gap-2" onClick={handleEdit}>
-                          <PencilSquareIcon {...iconProps}/>
-                      </button>
-                  </div>*/}
               </div>
           )}
         </div>

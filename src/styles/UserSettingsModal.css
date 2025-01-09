@@ -79,6 +79,8 @@ table th, table td {
   overflow: hidden; /* Ensure content does not overflow */
   text-overflow: ellipsis; /* Add ellipsis for overflowed text */
   white-space: nowrap; /* Prevent text from wrapping */
+  height: 40px; /* Set a fixed height for table rows */
+  line-height: 40px; /* Center text vertically */
 }
 
 table th {
@@ -88,16 +90,6 @@ table th {
 
 table tbody tr:hover {
   background-color: #828282;
-}
-
-/* Ensure file preview content comes inside the storage tab area */
-.file-info {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  border: 1px dotted #ccc;
-  padding: 5px;
-  margin-top: 10px;
 }
 
 /* Ensure file preview content comes inside the storage tab area */

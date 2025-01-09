@@ -22,6 +22,11 @@ const LoginPage: React.FC<LoginPageProps> = ({ setIsAuthenticated }) => {
     }
   };
 
+  const handleMicrosoftLogin = () => {
+    // Redirect to Microsoft's login page
+    window.location.href = 'https://login.microsoftonline.com/';
+  };
+
   return (
     <div className={styles.loginPage}>
       <div className={styles.loginContainer}>
@@ -53,6 +58,9 @@ const LoginPage: React.FC<LoginPageProps> = ({ setIsAuthenticated }) => {
             Log In
           </button>
         </form>
+        <button onClick={handleMicrosoftLogin} className={styles.microsoftButton}>
+          <img src="/microsoft-login.png" alt="Login with Microsoft" className={styles.microsoftImage} />
+        </button>
       </div>
     </div>
   );

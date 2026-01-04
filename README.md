@@ -124,7 +124,7 @@ The application requires an OpenAI API key to function. Create a `local.env.json
 ## Browser Support
 
 ### Production
-- \>0.2% market share
+- >0.2% market share
 - Not dead browsers
 - Excludes Opera Mini
 
